@@ -12,18 +12,24 @@ import io.flutter.embedding.android.FlutterFragment
 import io.flutter.plugin.common.MethodChannel
 
 
-class MainActivity : FragmentActivity(), FlutterBridge {
+class MainActivity : FragmentActivity() {
 
     private var flutterFragment: FlutterFragment? = null
-    private var flutterChannel: MethodChannel? = null
 
-    private fun sendMessageToFlutter(arg: String) {
-        flutterChannel?.invokeMethod("flutterIChooseYou", arg)
-    }
-
+    lateinit var flutterChannel: MethodChannel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        flutterChannel = MethodChannel(
+            MyApplication.getFlutterEngine().dartExecutor.binaryMessenger,
+            "flutter.bridge.method.channel"
+        )
+
+        flutterChannel.setMethodCallHandler { call, result ->
+            Log.d("MethodHandler", "Flutter called method: " + call.method)
+            flutterChannel.invokeMethod("methodCalledFromAndroid", "argument")
+        }
         setContentView(R.layout.activity_main)
 
         val fragmentManager: FragmentManager = supportFragmentManager
@@ -32,7 +38,7 @@ class MainActivity : FragmentActivity(), FlutterBridge {
             .findFragmentByTag(TAG_FLUTTER_FRAGMENT) as FlutterFragment?
 
         if (flutterFragment == null) {
-            flutterFragment = FlutterFragment.createDefault()
+            flutterFragment = FlutterFragment.withCachedEngine("flutter_engine_id").build()
             fragmentManager
                 .beginTransaction()
                 .add(
@@ -42,26 +48,12 @@ class MainActivity : FragmentActivity(), FlutterBridge {
                 )
                 .commit()
         }
+
+
     }
 
     companion object {
         private const val TAG_FLUTTER_FRAGMENT = "flutter_fragment"
     }
 
-    override fun setMethodChannel(methodChannel: MethodChannel?) {
-        methodChannel?.setMethodCallHandler(null)
-
-        flutterChannel = methodChannel
-        methodChannel?.setMethodCallHandler { call, result ->
-
-            Log.i(
-                "MethodCallHandler",
-                "Flutter calling with method:${call.method} and argument:${call.arguments}"
-            )
-            sendMessageToFlutter("I heard your message flutter.")
-            result.success(true)
-        }
-
-        sendMessageToFlutter("testFrom")
-    }
 }
